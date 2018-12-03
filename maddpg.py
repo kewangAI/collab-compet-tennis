@@ -9,15 +9,22 @@ from utilities import soft_update, transpose_to_tensor, transpose_list
 device = 'cpu'
 
 
-
 class MADDPG:
-    def __init__(self, discount_factor=0.95, tau=0.02):
+    def __init__(self, agent_num = 2, obs_size = 24, action_size = 2, discount_factor=0.95, tau=0.02):
         super(MADDPG, self).__init__()
 
-        # critic input = obs_full + actions = 14+2+2+2=20
-        self.maddpg_agent = [DDPGAgent(14, 16, 8, 2, 20, 32, 16), 
-                             DDPGAgent(14, 16, 8, 2, 20, 32, 16), 
-                             DDPGAgent(14, 16, 8, 2, 20, 32, 16)]
+        # critic input = obs_full + actions = 24+24+2+2=52
+        critic_size = (obs_size+action_size)*agent_num
+
+        hidden_in_actor=32
+        hidden_out_actor=16
+        hidden_in_critic=32
+        hidden_out_critic=16
+
+        self.maddpg_agent = [DDPGAgent(obs_size, hidden_in_actor, hidden_out_actor, action_size,
+                                       critic_size, hidden_in_critic, hidden_out_critic),
+                             DDPGAgent(obs_size, hidden_in_actor, hidden_out_actor, action_size,
+                                        critic_size, hidden_in_critic, hidden_out_critic)]
         
         self.discount_factor = discount_factor
         self.tau = tau
@@ -49,11 +56,11 @@ class MADDPG:
         # need to transpose each element of the samples
         # to flip obs[parallel_agent][agent_number] to
         # obs[agent_number][parallel_agent]
-        obs, obs_full, action, reward, next_obs, next_obs_full, done = map(transpose_to_tensor, samples)
+        obs, actions, rewards, next_obs, dones = zip(*samples)
 
-        obs_full = torch.stack(obs_full)
-        next_obs_full = torch.stack(next_obs_full)
-        
+        obs_full = torch.cat(states, dim=1)
+        next_obs_full = torch.cat(next_states, dim=1)
+
         agent = self.maddpg_agent[agent_number]
         agent.critic_optimizer.zero_grad()
 
@@ -78,6 +85,8 @@ class MADDPG:
         #torch.nn.utils.clip_grad_norm_(agent.critic.parameters(), 0.5)
         agent.critic_optimizer.step()
 
+
+
         #update actor network using policy gradient
         agent.actor_optimizer.zero_grad()
         # make input to agent
@@ -98,12 +107,6 @@ class MADDPG:
         #torch.nn.utils.clip_grad_norm_(agent.actor.parameters(),0.5)
         agent.actor_optimizer.step()
 
-        al = actor_loss.cpu().detach().item()
-        cl = critic_loss.cpu().detach().item()
-        logger.add_scalars('agent%i/losses' % agent_number,
-                           {'critic loss': cl,
-                            'actor_loss': al},
-                           self.iter)
 
     def update_targets(self):
         """soft update targets"""

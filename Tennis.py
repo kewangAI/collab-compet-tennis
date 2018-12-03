@@ -18,7 +18,7 @@ def train(env, number_of_episodes = 10000, episode_length = 500):
 
     for episode in range(1, number_of_episodes+1):
 
-        reward_this_episode = np.zeros((2, 0))
+        rewards_this_episode = np.zeros((2, 0))
 
         env_info = env.reset(train_mode=True)[brain_name]
         obs = env_info.vector_observations
