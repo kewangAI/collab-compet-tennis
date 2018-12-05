@@ -1,24 +1,29 @@
 from unityagents import UnityEnvironment
 import numpy as np
 
+from collections import deque
 from buffer import ReplayBuffer
 from maddpg import MADDPG
 import torch
 
-buffer = ReplayBuffer(int(1e5))
 
-def train(env, number_of_episodes = 10000, episode_length = 500):
+
+def train(env, number_of_episodes = 30000, episode_length = 500):
+
+    noise = 1.0
+    noise_reduction = 1.0
+    buffer = ReplayBuffer(int(1e5))
+    batchsize = 256
+
+    rewards_deque      = deque(maxlen=100)
+    rewards_total        = []
 
     # initialize policy and critic
     maddpg = MADDPG()
 
-    agent0_reward = []
-    agent1_reward = []
-
-
     for episode in range(1, number_of_episodes+1):
 
-        rewards_this_episode = np.zeros((2, 0))
+        rewards_this_episode = np.asarray([0.0, 0.0])
 
         env_info = env.reset(train_mode=True)[brain_name]
         obs = env_info.vector_observations
@@ -47,29 +52,34 @@ def train(env, number_of_episodes = 10000, episode_length = 500):
 
 
         # update once after every episode_per_update
-        if len(buffer) > batchsize and episode % episode_per_update < parallel_envs:
-            for a_i in range(3):
-                samples = buffer.sample(batchsize)
-                maddpg.update(samples, a_i, logger)
+        if len(buffer) > batchsize*4:
+            for _ in range(4):
+                for a_i in range(num_agents):
+                    samples = buffer.sample(batchsize)
+                    maddpg.update(samples, a_i)
             maddpg.update_targets()  # soft update the target network towards the actual networks
 
+        rewards_total.append(np.max(rewards_this_episode))
+        rewards_deque.append(rewards_total[-1])
+        average_score = np.mean(rewards_deque)
 
-        if episode % 100 == 0 or episode == number_of_episodes - 1:
-            avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward), np.mean(agent2_reward)]
+        print(episode, rewards_this_episode, rewards_total[-1], average_score)
+        #if episode % 100 == 0 or episode == number_of_episodes - 1:
+        #    avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward), np.mean(agent2_reward)]
 
 
         # saving model
-        save_dict_list = []
-        if save_info:
-            for i in range(2):
-                save_dict = {'actor_params': maddpg.maddpg_agent[i].actor.state_dict(),
-                             'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),
-                             'critic_params': maddpg.maddpg_agent[i].critic.state_dict(),
-                             'critic_optim_params': maddpg.maddpg_agent[i].critic_optimizer.state_dict()}
-                save_dict_list.append(save_dict)
-
-                torch.save(save_dict_list,
-                           os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
+        # save_dict_list = []
+        # if save_info:
+        #     for i in range(2):
+        #         save_dict = {'actor_params': maddpg.maddpg_agent[i].actor.state_dict(),
+        #                      'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),
+        #                      'critic_params': maddpg.maddpg_agent[i].critic.state_dict(),
+        #                      'critic_optim_params': maddpg.maddpg_agent[i].critic_optimizer.state_dict()}
+        #         save_dict_list.append(save_dict)
+        #
+        #         torch.save(save_dict_list,
+        #                    os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
 
 
 def test():
