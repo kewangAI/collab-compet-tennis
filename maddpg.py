@@ -4,7 +4,7 @@
 
 from ddpg import DDPGAgent
 import torch
-from utilities import soft_update, transpose_to_tensor, transpose_list
+from utilities import soft_update, trans_samples
 import numpy as np
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = 'cpu'
@@ -62,17 +62,9 @@ class MADDPG:
         # need to transpose each element of the samples
         # to flip obs[parallel_agent][agent_number] to
         # obs[agent_number][parallel_agent]
-        obs, actions, rewards, next_obs, dones = zip(*samples)
 
-        actions = transpose_to_tensor(actions)
-        dones = transpose_to_tensor(transpose_list(zip(*dones)))
-        rewards = transpose_to_tensor(transpose_list(zip(*rewards)))
+        obs, obs_full, actions, rewards, next_obs, next_obs_full, dones = trans_samples(samples)
 
-        obs = transpose_to_tensor(obs)
-        obs_full = torch.cat(obs, dim=1)
-
-        next_obs = transpose_to_tensor(next_obs)
-        next_obs_full = torch.cat(next_obs, dim=1)
 
         agent = self.maddpg_agent[agent_number]
         agent.critic_optimizer.zero_grad()
