@@ -1,22 +1,33 @@
 from unityagents import UnityEnvironment
 import numpy as np
+import glob
+
+import argparse
 
 from collections import deque
 from buffer import ReplayBuffer
 from maddpg import MADDPG
 import torch
+import os
 
 
-
-def train(env, number_of_episodes = 30000, episode_length = 500):
+def train(env, model_path='model_dir', number_of_episodes = 30000, episode_length = 500):
 
     noise = 1.0
     noise_reduction = 1.0
-    buffer = ReplayBuffer(int(1e5))
-    batchsize = 256
+    buffer = ReplayBuffer(int(1e4))
+    batchsize = 512
 
-    rewards_deque      = deque(maxlen=100)
-    rewards_total        = []
+
+    model_dir = os.getcwd() + "/"+model_path
+    model_files = glob.glob(model_dir+"/*.pt")
+    for file in model_files:
+        os.remove(file)
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    rewards_deque = deque(maxlen=100)
+    rewards_total = []
 
     # initialize policy and critic
     maddpg = MADDPG()
@@ -64,45 +75,66 @@ def train(env, number_of_episodes = 30000, episode_length = 500):
         average_score = np.mean(rewards_deque)
 
         print(episode, rewards_this_episode, rewards_total[-1], average_score)
-        #if episode % 100 == 0 or episode == number_of_episodes - 1:
-        #    avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward), np.mean(agent2_reward)]
-
 
         # saving model
-        # save_dict_list = []
-        # if save_info:
-        #     for i in range(2):
-        #         save_dict = {'actor_params': maddpg.maddpg_agent[i].actor.state_dict(),
-        #                      'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),
-        #                      'critic_params': maddpg.maddpg_agent[i].critic.state_dict(),
-        #                      'critic_optim_params': maddpg.maddpg_agent[i].critic_optimizer.state_dict()}
-        #         save_dict_list.append(save_dict)
-        #
-        #         torch.save(save_dict_list,
-        #                    os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
+        save_dict_list = []
+        if episode % 10 == 0 :
+            for i in range(2):
+                save_dict = {'actor_params': maddpg.maddpg_agent[i].actor.state_dict(),
+                             'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),
+                             'critic_params': maddpg.maddpg_agent[i].critic.state_dict(),
+                             'critic_optim_params': maddpg.maddpg_agent[i].critic_optimizer.state_dict()}
+                save_dict_list.append(save_dict)
+
+                torch.save(save_dict_list,
+                           os.path.join(model_dir,
+                          'episode-{}.pt'.format(episode)))
+
+                torch.save(save_dict_list,'best.pt')
+    return rewards_total
+
+def test(env, model_file = 'best.pt'):
+    dict_list = torch.load('best.pt')
+    maddpg = MADDPG()
+
+    for i in range(2):
+       maddpg.maddpg_agent[i].actor.load_state_dict(dict_list[i]['actor_params'])
+       maddpg.maddpg_agent[i].actor_optimizer.load_state_dict(dict_list[i]['actor_optim_params'])
+       maddpg.maddpg_agent[i].critic.load_state_dict(dict_list[i]['critic_params'])
+       maddpg.maddpg_agent[i].critic_optimizer.load_state_dict(dict_list[i]['critic_optim_params'])
 
 
-def test():
-    # for i in range(1, 6):  # play game for 5 episodes
-    #     env_info = env.reset(train_mode=False)[brain_name]  # reset the environment
-    #     states = env_info.vector_observations  # get the current state (for each agent)
-    #     scores = np.zeros(num_agents)  # initialize the score (for each agent)
-    #     while True:
-    #         actions = np.random.randn(num_agents, action_size)  # select an action (for each agent)
-    #         actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
-    #         env_info = env.step(actions)[brain_name]  # send all actions to tne environment
-    #         next_states = env_info.vector_observations  # get next state (for each agent)
-    #         rewards = env_info.rewards  # get reward (for each agent)
-    #         dones = env_info.local_done  # see if episode finished
-    #         scores += env_info.rewards  # update the score (for each agent)
-    #         states = next_states  # roll over states to next time step
-    #         if np.any(dones):  # exit loop if episode finished
-    #             break
-    #     print('Score (max over agents) from episode {}: {}'.format(i, np.max(scores)))
-    pass
-
+    for i in range(1, 20):  # play game for 20 episodes
+        env_info = env.reset(train_mode=True)[brain_name]  # reset the environment
+        states = env_info.vector_observations  # get the current state (for each agent)
+        scores = np.zeros(2)  # initialize the score (for each agent)
+        while True:
+            actions = maddpg.act(states)  # select actions
+            env_info = env.step(actions)[brain_name]  # send all actions to tne environment
+            next_states = env_info.vector_observations  # get next state (for each agent)
+            rewards = env_info.rewards  # get reward (for each agent)
+            dones = env_info.local_done  # see if episode finished
+            scores += rewards  # update the score (for each agent)
+            states = next_states  # roll over states to next time step
+            if np.any(dones):  # exit loop if episode finished
+                break
+        print('Scores from episode {}: {}'.format(i, scores))
 
 if __name__=='__main__':
+
+
+    parser = argparse.ArgumentParser()
+
+    # Flow
+    parser.add_argument('--train', dest='train', action='store_true')
+    parser.add_argument('--no-train', dest='train', action='store_false')
+    parser.add_argument('--test', dest='test', action='store_true')
+    parser.set_defaults(train=True)
+    parser.set_defaults(test=False)
+
+    args = parser.parse_args()
+
+
 
     env = UnityEnvironment(file_name="./Tennis_Linux/Tennis.x86_64")
     brain_name = env.brain_names[0]
@@ -125,6 +157,14 @@ if __name__=='__main__':
     print('There are {} agents. Each observes a state with length: {}'.format(states.shape[0], state_size))
     print('The state for the first agent looks like:', states[0])
 
-    train(env)
+    if args.train :
+        scores =   train(env)
+        ofile = "score_history.csv"
+        plot_save_score(scores, ofile)
+
+    if args.test:
+        scores = test(env)
+
+
 
     env.close()
