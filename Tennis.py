@@ -135,7 +135,6 @@ if __name__=='__main__':
     args = parser.parse_args()
 
 
-
     env = UnityEnvironment(file_name="./Tennis_Linux/Tennis.x86_64")
     brain_name = env.brain_names[0]
     brain = env.brains[brain_name]
