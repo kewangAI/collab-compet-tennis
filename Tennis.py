@@ -1,6 +1,7 @@
 from unityagents import UnityEnvironment
 import numpy as np
 import glob
+import matplotlib.pyplot as plt
 
 import argparse
 
@@ -10,13 +11,35 @@ from maddpg import MADDPG
 import torch
 import os
 
+def rolling_aver(scores):
+    scores_deque = deque(maxlen=100)
+    scores_100 = []
+    for s in scores:
+        scores_deque.append(s)
+        scores_100.append(np.mean(scores_deque))
 
-def train(env, model_path='model_dir', number_of_episodes = 30000, episode_length = 500):
+    return scores_100
+
+def plot_save_score(scores, file_name):
+    scores_100 = rolling_aver(scores)
+    v_scores = np.array([range(1, len(scores)+1), scores, scores_100])
+    np.savetxt(file_name, np.transpose(v_scores), delimiter=',')
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.plot(np.arange(len(scores)), scores)
+    plt.ylabel('Score')
+    plt.xlabel('Episode #')
+    plt.show()
+    fig.savefig("training.pdf", bbox_inches='tight')
+
+def train(env, model_path='model_dir', number_of_episodes = 50000, episode_length = 100):
 
     noise = 1.0
     noise_reduction = 1.0
-    buffer = ReplayBuffer(int(1e4))
-    batchsize = 512
+    buffer = ReplayBuffer(int(2500*episode_length))
+    batchsize = 256
 
 
     model_dir = os.getcwd() + "/"+model_path
@@ -63,7 +86,7 @@ def train(env, model_path='model_dir', number_of_episodes = 30000, episode_lengt
 
 
         # update once after every episode_per_update
-        if len(buffer) > batchsize*4:
+        if len(buffer) > batchsize*5:
             for _ in range(4):
                 for a_i in range(num_agents):
                     samples = buffer.sample(batchsize)
