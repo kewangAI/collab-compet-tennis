@@ -37,7 +37,7 @@ def plot_save_score(scores, file_name):
 def train(env, model_path='model_dir', number_of_episodes = 50000, episode_length = 100):
 
     noise = 1.0
-    noise_reduction = 1.0
+    noise_reduction = 1-0.00001
     buffer = ReplayBuffer(int(2500*episode_length))
     batchsize = 256
 
@@ -61,11 +61,11 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
 
         env_info = env.reset(train_mode=True)[brain_name]
         obs = env_info.vector_observations
+        noise *= noise_reduction
 
         for episode_t in range(episode_length):
 
             actions = maddpg.act(obs, noise=noise)
-            noise *= noise_reduction
 
             env_info = env.step(actions)[brain_name]
 
