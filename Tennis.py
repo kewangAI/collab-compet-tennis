@@ -114,10 +114,12 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
                 torch.save(save_dict_list,'best.pt')
     return rewards_total
 
-def test(env, model_file = 'best.pt'):
-    dict_list = torch.load('best.pt')
-    maddpg = MADDPG()
+def test(env, model_file = 'best.pt', num_ep = 100):
 
+    rewards_total = []
+    dict_list = torch.load(model_file)
+    
+    maddpg = MADDPG()
     for i in range(2):
        maddpg.maddpg_agent[i].actor.load_state_dict(dict_list[i]['actor_params'])
        maddpg.maddpg_agent[i].actor_optimizer.load_state_dict(dict_list[i]['actor_optim_params'])
@@ -125,7 +127,7 @@ def test(env, model_file = 'best.pt'):
        maddpg.maddpg_agent[i].critic_optimizer.load_state_dict(dict_list[i]['critic_optim_params'])
 
 
-    for i in range(1, 20):  # play game for 20 episodes
+    for i in range(1, num_ep+1):  # play game for 100 episodes
         env_info = env.reset(train_mode=True)[brain_name]  # reset the environment
         states = env_info.vector_observations  # get the current state (for each agent)
         scores = np.zeros(2)  # initialize the score (for each agent)
@@ -139,8 +141,10 @@ def test(env, model_file = 'best.pt'):
             states = next_states  # roll over states to next time step
             if np.any(dones):  # exit loop if episode finished
                 break
+        rewards_total.append(np.max(scores))
         print('Scores from episode {}: {}'.format(i, scores))
-
+    print('Average Score over {} episodes: {}'.format(num_ep, np.mean(rewards_total)))
+    
 if __name__=='__main__':
 
 
