@@ -47,7 +47,7 @@ The environment is considered solved, when the average (over 100 episodes) of th
    - __Windows__: 
 	```bash
 	conda create --name maddpg python=3.6 
-	activate ddpg
+	activate maddpg
 	```
 
 
