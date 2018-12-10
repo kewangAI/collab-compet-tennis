@@ -2,7 +2,6 @@ from unityagents import UnityEnvironment
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
-
 import argparse
 
 from collections import deque
@@ -34,21 +33,20 @@ def plot_save_score(scores, file_name):
     plt.show()
     fig.savefig("training.pdf", bbox_inches='tight')
 
-def train(env, model_path='model_dir', number_of_episodes = 50000, episode_length = 100):
+
+def train(env, model_path='model_dir', number_of_episodes = 50000, episode_length = 500):
 
     noise = 1.0
-    noise_reduction = 1-0.00001
-    buffer = ReplayBuffer(int(2500*episode_length))
+    noise_reduction = 1.0
     batchsize = 256
-
 
     model_dir = os.getcwd() + "/"+model_path
     model_files = glob.glob(model_dir+"/*.pt")
     for file in model_files:
         os.remove(file)
-
     os.makedirs(model_dir, exist_ok=True)
 
+    buffer = ReplayBuffer(int(1e5))
     rewards_deque = deque(maxlen=100)
     rewards_total = []
 
@@ -61,11 +59,11 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
 
         env_info = env.reset(train_mode=True)[brain_name]
         obs = env_info.vector_observations
-        noise *= noise_reduction
 
         for episode_t in range(episode_length):
 
             actions = maddpg.act(obs, noise=noise)
+            noise *= noise_reduction
 
             env_info = env.step(actions)[brain_name]
 
@@ -86,7 +84,7 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
 
 
         # update once after every episode_per_update
-        if len(buffer) > batchsize*5:
+        if len(buffer) > batchsize*4:
             for _ in range(4):
                 for a_i in range(num_agents):
                     samples = buffer.sample(batchsize)
@@ -101,7 +99,7 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
 
         # saving model
         save_dict_list = []
-        if episode % 10 == 0 :
+        if episode % 1000 == 0 :
             for i in range(2):
                 save_dict = {'actor_params': maddpg.maddpg_agent[i].actor.state_dict(),
                              'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),

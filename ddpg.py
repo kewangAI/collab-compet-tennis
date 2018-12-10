@@ -17,7 +17,7 @@ device = 'cpu'
 class DDPGAgent:
     def __init__(self, in_actor, hidden_in_actor, hidden_out_actor, out_actor,
                  in_critic, hidden_in_critic, hidden_out_critic,
-                 lr_actor=2.0e-4, lr_critic=2.0e-4):
+                 lr_actor=2.0e-4, lr_critic=1.0e-4):
         super(DDPGAgent, self).__init__()
 
         self.actor = Network(in_actor, hidden_in_actor, hidden_out_actor, out_actor, actor=True).to(device)
