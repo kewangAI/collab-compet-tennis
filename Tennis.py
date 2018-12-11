@@ -111,7 +111,11 @@ def train(env, model_path='model_dir', number_of_episodes = 50000, episode_lengt
                            os.path.join(model_dir,
                           'episode-{}.pt'.format(episode)))
 
-                torch.save(save_dict_list,'best.pt')
+                torch.save(maddpg.maddpg_agent[0].actor.state_dict(),'actor0.pt')
+                torch.save(maddpg.maddpg_agent[1].actor.state_dict(),'actor1.pt')
+                torch.save(maddpg.maddpg_agent[0].critic.state_dict(),'critic0.pt')
+                torch.save(maddpg.maddpg_agent[1].critic.state_dict(),'critic1.pt')
+                
     return rewards_total
 
 def test(env, model_file = 'best.pt', num_ep = 100):
@@ -120,11 +124,10 @@ def test(env, model_file = 'best.pt', num_ep = 100):
     dict_list = torch.load(model_file)
     
     maddpg = MADDPG()
-    for i in range(2):
-       maddpg.maddpg_agent[i].actor.load_state_dict(dict_list[i]['actor_params'])
-       maddpg.maddpg_agent[i].actor_optimizer.load_state_dict(dict_list[i]['actor_optim_params'])
-       maddpg.maddpg_agent[i].critic.load_state_dict(dict_list[i]['critic_params'])
-       maddpg.maddpg_agent[i].critic_optimizer.load_state_dict(dict_list[i]['critic_optim_params'])
+    maddpg.maddpg_agent[0].actor.load_state_dict(torch.load('actor0.pt'))
+    maddpg.maddpg_agent[1].actor.load_state_dict(torch.load('actor1.pt'))
+    maddpg.maddpg_agent[0].critic.load_state_dict(torch.load('critic1.pt'))
+    maddpg.maddpg_agent[1].critic.load_state_dict(torch.load('critic1.pt'))
 
 
     for i in range(1, num_ep+1):  # play game for 100 episodes
