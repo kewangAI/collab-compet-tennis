@@ -64,11 +64,13 @@ https://papers.nips.cc/paper/7217-multi-agent-actor-critic-for-mixed-cooperative
    - __Train__: The program will do training by default. If training is not needed go with option "--no-training"
    - __Test__:  The program will NOT do testing by default. If testing is required, use option "--test"
 
-
 ### Examples
-   - __A__ : python Navigation.py --test --no-train 
-   - __B__ : python Navigation.py 
+   - __A__ : python Tennis.py --test --no-train 
+   - __B__ : python Tennis.py 
  
+## Benchark
+The trained model obtains a score of 2.34 over 100 episodes 
+(Using command: python Tennis.py --test --no-train) 
 
 ## TODO
 The current version does NOT GPU. This issue will be fixed later. 
